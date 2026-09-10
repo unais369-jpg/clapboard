@@ -112,6 +112,81 @@
     <div id="modalBody"></div>
   </div>
 </div>
-<script src="app-v8.js"></script>
-<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}</script></body>
+<script src="app-v9.js"></script>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}</script>
+<script>
+(function(){
+  const b=document.getElementById("analyzeScript"), input=document.getElementById("scriptFile"), status=document.getElementById("fileStatus");
+  if(!b||!input)return;
+
+  async function getText(f){
+    if(/\.txt$/i.test(f.name)) return await f.text();
+    if(/\.docx$/i.test(f.name)){
+      if(!window.mammoth){
+        await new Promise((ok,no)=>{let s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js";s.onload=ok;s.onerror=no;document.head.appendChild(s);});
+      }
+      let r=await mammoth.convertToHtml({arrayBuffer:await f.arrayBuffer()});
+      let d=new DOMParser().parseFromString(r.value,"text/html");
+      return [...d.querySelectorAll("p,h1,h2,h3,li")].map(x=>x.textContent.trim()).filter(Boolean).join("\n");
+    }
+    if(/\.pdf$/i.test(f.name)){
+      if(!window.pdfjsLib){
+        await new Promise((ok,no)=>{let s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";s.onload=ok;s.onerror=no;document.head.appendChild(s);});
+      }
+      pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      let pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise, all=[];
+      for(let i=1;i<=pdf.numPages;i++){let p=await pdf.getPage(i),c=await p.getTextContent();all.push(c.items.map(x=>x.str).join(" "));}
+      return all.join("\n");
+    }
+    throw new Error("Unsupported file");
+  }
+
+  function analyze(t){
+    const ls=t.replace(/\r/g,"").split("\n").map(x=>x.trim()).filter(Boolean);
+    const re=/^(?:INT\.?|EXT\.?|INT\/EXT\.?|I\/E\.?|SCENE|സീൻ|രംഗം)\b/i;
+    let blocks=[], cur=null;
+    for(const l of ls){
+      if(re.test(l)){if(cur)blocks.push(cur);cur={h:l,body:[]};}
+      else if(cur)cur.body.push(l);
+    }
+    if(cur)blocks.push(cur);
+    if(!blocks.length){
+      // Detect common screenplay headings even when INT/EXT is on a separate line.
+      for(let i=0;i<ls.length;i++){
+        if(/\b(DAY|NIGHT|MORNING|EVENING|AFTERNOON)\b/i.test(ls[i]) && i>0){
+          if(!cur)cur={h:ls[i-1],body:[]};
+          blocks.push(cur);cur={h:ls[i],body:[]};
+        } else if(cur)cur.body.push(ls[i]);
+      }
+    }
+    return blocks;
+  }
+
+  b.addEventListener("click",async function(e){
+    e.preventDefault(); e.stopImmediatePropagation();
+    const f=input.files&&input.files[0];
+    if(!f){alert("Please choose the screenplay first.");return;}
+    b.disabled=true;b.textContent="✨ Analyzing…";
+    try{
+      const t=await getText(f), blocks=analyze(t);
+      if(!blocks.length) throw new Error("No scene headings detected in this screenplay.");
+      const panel=document.getElementById("dashboard");
+      let box=document.getElementById("v9result");
+      if(!box){box=document.createElement("div");box.id="v9result";box.className="panel";panel.appendChild(box);}
+      box.innerHTML="<h2>Analysis Complete</h2><p><b>"+blocks.length+"</b> scene(s) detected from <b>"+f.name+"</b>.</p>"+
+        "<div style='overflow:auto'><table><thead><tr><th>#</th><th>Scene heading</th><th>INT/EXT</th><th>Time</th><th>Location</th></tr></thead><tbody>"+
+        blocks.map((x,i)=>{let h=x.h, u=h.toUpperCase();let ie=/^INT\/EXT|^I\/E/.test(u)?"INT/EXT":/^INT/.test(u)?"INT":/^EXT/.test(u)?"EXT":"—";let tm=/NIGHT|NITE/.test(u)?"NIGHT":/MORNING|DAWN/.test(u)?"MORNING":/EVENING|DUSK/.test(u)?"EVENING":/AFTERNOON/.test(u)?"AFTERNOON":/DAY/.test(u)?"DAY":"—";let loc=h.replace(/^(INT\/EXT|I\/E|INT|EXT|SCENE|സീൻ|രംഗം)\.?\s*/i,"").replace(/^\d+[\s.)-]*/,"").replace(/\s*[-–—:|]\s*(DAY|NIGHT|MORNING|EVENING|AFTERNOON).*$/i,"").trim();return "<tr><td>"+(i+1)+"</td><td>"+h.replace(/</g,"&lt;")+"</td><td>"+ie+"</td><td>"+tm+"</td><td>"+(loc||"—").replace(/</g,"&lt;")+"</td></tr>";}).join("")+
+        "</tbody></table></div>";
+      status.textContent=f.name+" • analysis complete";
+      b.textContent="✓ Analysis Complete";
+      box.scrollIntoView({behavior:"smooth"});
+    }catch(err){
+      status.textContent=f.name+" • analysis failed";
+      b.disabled=false;b.textContent="✨ Analyze Screenplay";
+      alert("Analysis failed: "+err.message);
+    }
+  },true);
+})();
+</script>
+</body>
 </html>
