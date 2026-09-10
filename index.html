@@ -29,7 +29,7 @@
     <div>
       <label>Screenplay</label>
       <input id="scriptFile" type="file" accept=".pdf,.doc,.docx,.txt">
-      <small id="fileStatus">No screenplay uploaded</small><button id="analyzeScript" class="analyze-btn" disabled>✨ Analyze Screenplay</button>
+      <small id="fileStatus">No screenplay uploaded</small><button id="analyzeScript" class="analyze-btn">✨ Analyze Screenplay</button>
     </div>
   </section>
 
@@ -112,7 +112,7 @@
     <div id="modalBody"></div>
   </div>
 </div>
-<script src="app-v9.js"></script>
+<script src="app-v10.js"></script>
 <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}</script>
 <script>
 (function(){
@@ -186,6 +186,142 @@
       alert("Analysis failed: "+err.message);
     }
   },true);
+})();
+</script>
+
+<script>
+(function(){
+  const input=document.getElementById("scriptFile");
+  const btn=document.getElementById("analyzeScript");
+  const status=document.getElementById("fileStatus");
+  if(!input||!btn)return;
+
+  function activate(){
+    btn.disabled=false;
+    btn.removeAttribute("disabled");
+    btn.style.pointerEvents="auto";
+    btn.style.opacity="1";
+    btn.style.cursor="pointer";
+    btn.classList.remove("disabled");
+  }
+  input.addEventListener("change", activate, true);
+  setInterval(activate, 500);
+
+  async function loadScriptText(file){
+    if(/\.txt$/i.test(file.name)) return await file.text();
+
+    if(/\.docx$/i.test(file.name)){
+      if(!window.mammoth){
+        await new Promise((resolve,reject)=>{
+          const s=document.createElement("script");
+          s.src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js";
+          s.onload=resolve; s.onerror=reject; document.head.appendChild(s);
+        });
+      }
+      const r=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});
+      return r.value;
+    }
+
+    if(/\.pdf$/i.test(file.name)){
+      if(!window.pdfjsLib){
+        await new Promise((resolve,reject)=>{
+          const s=document.createElement("script");
+          s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+          s.onload=resolve; s.onerror=reject; document.head.appendChild(s);
+        });
+      }
+      pdfjsLib.GlobalWorkerOptions.workerSrc=
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+      let out=[];
+      for(let i=1;i<=pdf.numPages;i++){
+        const p=await pdf.getPage(i), c=await p.getTextContent();
+        out.push(c.items.map(x=>x.str).join(" "));
+      }
+      return out.join("\n");
+    }
+    throw new Error("DOCX, PDF or TXT files are supported.");
+  }
+
+  function makeScenes(text){
+    const lines=text.replace(/\r/g,"").split("\n").map(x=>x.trim()).filter(Boolean);
+    const heading=/^(INT\.?|EXT\.?|INT\/EXT\.?|I\/E\.?|SCENE|സീൻ|രംഗം)\b/i;
+    let scenes=[], cur=null;
+    for(const line of lines){
+      if(heading.test(line)){
+        if(cur) scenes.push(cur);
+        cur={heading:line, body:[]};
+      } else if(cur) cur.body.push(line);
+    }
+    if(cur) scenes.push(cur);
+
+    // If screenplay headings use numbered scenes without INT/EXT.
+    if(!scenes.length){
+      const numbered=/^(?:\d{1,3})[\s.)-]+/;
+      for(const line of lines){
+        if(numbered.test(line)){
+          if(cur) scenes.push(cur);
+          cur={heading:line,body:[]};
+        } else if(cur) cur.body.push(line);
+      }
+      if(cur) scenes.push(cur);
+    }
+    return scenes;
+  }
+
+  btn.addEventListener("click", async function(e){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+
+    const file=input.files && input.files[0];
+    if(!file){
+      alert("Please choose your screenplay first.");
+      return;
+    }
+
+    activate();
+    btn.textContent="✨ Analyzing…";
+    try{
+      const text=await loadScriptText(file);
+      const scenes=makeScenes(text);
+      if(!scenes.length) throw new Error("No scene headings were detected.");
+
+      let result=document.getElementById("v10result");
+      if(!result){
+        result=document.createElement("section");
+        result.id="v10result";
+        result.style.cssText="margin:24px 0;padding:22px;border:1px solid #ddd;border-radius:16px;background:#fff";
+        const anchor=document.querySelector(".dashboard, #dashboard") || document.body;
+        anchor.appendChild(result);
+      }
+
+      result.innerHTML=
+        "<h2>✓ Analysis Complete</h2>"+
+        "<p><b>"+scenes.length+"</b> scene(s) detected from <b>"+file.name.replace(/</g,"&lt;")+"</b>.</p>"+
+        "<div style='overflow:auto'><table style='width:100%;border-collapse:collapse'>"+
+        "<thead><tr><th style='text-align:left;padding:8px'>#</th><th style='text-align:left;padding:8px'>Scene</th><th style='text-align:left;padding:8px'>Type</th><th style='text-align:left;padding:8px'>Time</th></tr></thead>"+
+        "<tbody>"+
+        scenes.map((s,i)=>{
+          const h=s.heading, u=h.toUpperCase();
+          const type=/^INT\/EXT|^I\/E/.test(u)?"INT/EXT":/^INT/.test(u)?"INT":/^EXT/.test(u)?"EXT":"—";
+          const time=/NIGHT|NITE/.test(u)?"NIGHT":/MORNING|DAWN/.test(u)?"MORNING":/EVENING|DUSK/.test(u)?"EVENING":/AFTERNOON/.test(u)?"AFTERNOON":/DAY/.test(u)?"DAY":"—";
+          return "<tr><td style='padding:8px;border-top:1px solid #eee'>"+(i+1)+"</td>"+
+                 "<td style='padding:8px;border-top:1px solid #eee'>"+h.replace(/</g,"&lt;")+"</td>"+
+                 "<td style='padding:8px;border-top:1px solid #eee'>"+type+"</td>"+
+                 "<td style='padding:8px;border-top:1px solid #eee'>"+time+"</td></tr>";
+        }).join("")+
+        "</tbody></table></div>";
+
+      if(status) status.textContent=file.name+" • analysis complete";
+      btn.textContent="✓ Analysis Complete";
+      result.scrollIntoView({behavior:"smooth"});
+    }catch(err){
+      if(status) status.textContent=file.name+" • analysis failed";
+      btn.textContent="✨ Analyze Screenplay";
+      activate();
+      alert("Analysis failed: "+err.message);
+    }
+  }, true);
 })();
 </script>
 </body>
