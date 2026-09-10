@@ -112,67 +112,6 @@
     <div id="modalBody"></div>
   </div>
 </div>
-<script src="app-v12.js"></script>
-<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}</script>
-<script>
-(function(){
- const input=document.getElementById('scriptFile'), btn=document.getElementById('analyzeScript'), status=document.getElementById('fileStatus');
- if(!input||!btn)return;
- const activate=()=>{btn.disabled=false;btn.removeAttribute('disabled');btn.style.pointerEvents='auto';btn.style.opacity='1';};
- input.addEventListener('change',activate,true); activate();
- async function textFromFile(f){
-   if(/\.txt$/i.test(f.name)) return await f.text();
-   if(/\.docx$/i.test(f.name)){
-     if(!window.mammoth) await new Promise((res,rej)=>{let s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});
-     const r=await mammoth.extractRawText({arrayBuffer:await f.arrayBuffer()}); return r.value||'';
-   }
-   if(/\.pdf$/i.test(f.name)){
-     if(!window.pdfjsLib) await new Promise((res,rej)=>{let s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});
-     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-     const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise, pages=[];
-     for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),c=await p.getTextContent();pages.push((c.items||[]).map(x=>x.str).join(' '));}
-     return pages.join('\n\n');
-   }
-   throw new Error('DOCX, PDF or TXT only');
- }
- function fallbackBlocks(t){
-   const ls=String(t||'').replace(/\r/g,'').split(/\n+/).map(x=>x.trim()).filter(Boolean), out=[]; let cur=null;
-   const head=/^(INT\.?|EXT\.?|INT\/EXT\.?|I\/E\.?|SCENE\b|സീൻ\b|രംഗം\b)/i;
-   for(const l of ls){if(head.test(l)){if(cur)out.push(cur);cur={h:l,body:[]};}else if(cur)cur.body.push(l)}
-   if(cur)out.push(cur);
-   if(!out.length){
-     const paras=String(t||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);
-     paras.forEach((p,i)=>out.push({h:'SCENE '+(i+1),body:p.split(/\n/)}));
-   }
-   return out;
- }
- btn.addEventListener('click',async function(e){
-   e.preventDefault();e.stopImmediatePropagation();
-   const f=input.files&&input.files[0]; if(!f){alert('Please choose the screenplay first.');return;}
-   btn.disabled=true;btn.textContent='✨ Analyzing…';
-   try{
-     const text=await textFromFile(f);
-     const blocks=(typeof window.sceneBlocks==='function'?window.sceneBlocks(text):fallbackBlocks(text));
-     if(!blocks.length)throw new Error('No readable scenes found.');
-     const rows=blocks.map((b,i)=>{
-       let p=typeof window.parseHeading==='function'?window.parseHeading(b.h,i):{loc:b.h,ie:'—',time:'UNSPECIFIED'};
-       if(b.loc) p.loc=b.loc; if(b.ie) p.ie=b.ie; if(b.time) p.time=b.time;
-       const body=(b.body||[]).join(' ');
-       const chars=typeof window.extractCharacters==='function'?window.extractCharacters(b.body||[]):[];
-       const detect=(typeof window.detect==='function')?window.detect:(s)=>'—';
-       return {no:i+1,loc:p.loc,ie:p.ie,time:p.time,chars:chars.join(', ')||'Review screenplay',artists:chars.join(', ')||'To be cast',props:detect(body,['phone','mobile','gun','bag','file','laptop','key','watch','wallet','bottle','glass','cup','book','letter','photo','helmet','car','bike','camera','ഫോൺ','തോക്ക്','ബാഗ്']),costume:detect(body,['black','white','blue','red','shirt','t-shirt','pants','jeans','dress','saree','uniform','jacket','ഷർട്ട്','പാന്റ്','സാരി']),vehicle:detect(body,['car','bike','motorcycle','scooter','auto','taxi','bus','jeep','truck','van','കാർ','ബൈക്ക്','ഓട്ടോ','ബസ്','ജീപ്പ്']),camera:detect(body,['gimbal','drone','steadicam','handheld','35mm','50mm','85mm','crane'])};
-     });
-     window.scenes=rows;
-     if(typeof window.renderScenes==='function')window.renderScenes();
-     if(typeof window.renderStats==='function')window.renderStats();
-     if(typeof window.generateSchedule==='function')window.generateSchedule();
-     if(typeof window.save==='function')window.save();
-     status.textContent=f.name+' • analysis complete'; btn.textContent='✓ Analysis Complete'; activate();
-     const tab=document.querySelector('[data-tab="scenes"]'); if(tab)tab.click();
-     const count=document.getElementById('sceneCount'); if(count)count.textContent=rows.length;
-   }catch(err){status.textContent=f.name+' • analysis failed';btn.textContent='✨ Analyze Screenplay';activate();alert('Analysis failed: '+err.message);}
- },true);
-})();
-</script>
+<script src="app-v13.js?v=13"></script>
 </body>
 </html>
