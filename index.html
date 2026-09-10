@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111318"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Clapboard"><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon.svg"><title>Clapboard — Film Production</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div>
+    <div class="eyebrow">FILM PRODUCTION</div>
+    <h1>🎬 Clapboard</h1>
+    <p>Film Production • Shooting Chart</p>
+  </div>
+  <button id="newProject">+ New Project</button>
+</header>
+
+<main>
+  <section class="project-card">
+    <div>
+      <label>Project Name</label>
+      <input id="projectName" value="Untitled Film">
+    </div>
+    <div>
+      <label>Director</label>
+      <input id="director" value="Unais S">
+    </div>
+    <div>
+      <label>Screenplay</label>
+      <input id="scriptFile" type="file" accept=".pdf,.doc,.docx,.txt">
+      <small id="fileStatus">No screenplay uploaded</small>
+    </div>
+  </section>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="dashboard">Dashboard</button>
+    <button class="tab" data-tab="scenes">Scenes</button>
+    <button class="tab" data-tab="schedule">Shooting Chart</button>
+    <button class="tab" data-tab="continuity">Continuity</button>
+    <button class="tab" data-tab="team">Team Access</button>
+  </nav>
+
+  <section id="dashboard" class="tab-panel active">
+    <div class="stats">
+      <div><b id="sceneCount">0</b><span>Scenes</span></div>
+      <div><b id="dayCount">0</b><span>Shooting Days</span></div>
+      <div><b id="locationCount">0</b><span>Locations</span></div>
+      <div><b id="artistCount">0</b><span>Artists</span></div>
+    </div>
+    <div class="grid two">
+      <div class="panel">
+        <h2>AI Breakdown</h2>
+        <p>Upload a screenplay and add scenes manually in this prototype. The production version can parse screenplay scenes automatically and create the breakdown.</p>
+        <button id="addSample">Load Sample Film</button>
+      </div>
+      <div class="panel">
+        <h2>Next build</h2>
+        <ul>
+          <li>PDF/DOCX screenplay parsing</li>
+          <li>AI scene extraction</li>
+          <li>Automatic day/night & INT/EXT detection</li>
+          <li>Department-wise breakdown</li>
+          <li>Cloud collaboration & permissions</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="scenes" class="tab-panel">
+    <div class="toolbar">
+      <h2>Scene Breakdown</h2>
+      <button id="addScene">+ Add Scene</button>
+    </div>
+    <div class="table-wrap">
+      <table id="sceneTable">
+        <thead><tr>
+          <th>#</th><th>Location</th><th>INT/EXT</th><th>Time</th><th>Characters</th>
+          <th>Artists</th><th>Props</th><th>Costume</th><th>Vehicle</th><th>Camera</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="schedule" class="tab-panel">
+    <div class="toolbar">
+      <h2>Shooting Chart</h2>
+      <button id="generateSchedule">Generate Schedule</button>
+    </div>
+    <div id="scheduleList"></div>
+  </section>
+
+  <section id="continuity" class="tab-panel">
+    <div class="toolbar"><h2>Continuity</h2><button id="addContinuity">+ Add Note</button></div>
+    <div id="continuityList"></div>
+  </section>
+
+  <section id="team" class="tab-panel">
+    <div class="toolbar"><h2>Team Access</h2><button id="addMember">+ Add Member</button></div>
+    <div class="panel">
+      <p class="muted">Prototype permission model: Admin, Edit, View.</p>
+      <table id="teamTable"><thead><tr><th>Name</th><th>Department</th><th>Access</th><th></th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+</main>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-box">
+    <button class="close" id="closeModal">×</button>
+    <h2 id="modalTitle">Add</h2>
+    <div id="modalBody"></div>
+  </div>
+</div>
+<script src="app.js"></script>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}</script></body>
+</html>
